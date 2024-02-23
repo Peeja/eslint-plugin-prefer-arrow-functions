@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/ban-ts-comment */
 import {
   DEFAULT_OPTIONS,
   USE_ARROW_WHEN_FUNCTION,
@@ -6,7 +8,9 @@ import {
   USE_IMPLICIT,
 } from './config';
 
-export default {
+import { Rule } from 'eslint';
+
+const rule: Rule.RuleModule = {
   meta: {
     docs: {
       category: 'emcascript6',
@@ -18,7 +22,9 @@ export default {
       {
         additionalProperties: false,
         properties: {
-          allowNamedFunctions: { type: 'boolean' },
+          allowNamedFunctions: {
+            anyOf: [{ type: ['boolean'] }, { enum: ['expression-only'] }],
+          },
           classPropertiesAllowed: { type: 'boolean' },
           disallowPrototype: { type: 'boolean' },
           returnStyle: {
@@ -39,6 +45,10 @@ export default {
         ? options[name]
         : DEFAULT_OPTIONS[name];
     const allowNamedFunctions = getOption('allowNamedFunctions');
+    const allowNamedFunctionsInDeclarations = allowNamedFunctions === true;
+    const allowNamedFunctionsInExpressions = [true, 'expression-only'].includes(
+      allowNamedFunctions,
+    );
     const singleReturnOnly = getOption('singleReturnOnly');
     const classPropertiesAllowed = getOption('classPropertiesAllowed');
     const disallowPrototype = getOption('disallowPrototype');
@@ -90,6 +100,7 @@ export default {
     const getReturnType = (node) =>
       node.returnType &&
       node.returnType.range &&
+      // @ts-ignore
       sourceCode.getText().substring(...node.returnType.range);
 
     const containsToken = (type, value, node) => {
@@ -173,13 +184,18 @@ export default {
           const isPropertyOfReplacementPrototypeObject =
             ancestor.type === 'AssignmentExpression' &&
             ancestor.left &&
+            // @ts-ignore
             ancestor.left.property &&
+            // @ts-ignore
             ancestor.left.property.name === 'prototype';
           const isMutationOfExistingPrototypeObject =
             ancestor.type === 'AssignmentExpression' &&
             ancestor.left &&
+            // @ts-ignore
             ancestor.left.object &&
+            // @ts-ignore
             ancestor.left.object.property &&
+            // @ts-ignore
             ancestor.left.object.property.name === 'prototype';
           return (
             isPropertyOfReplacementPrototypeObject ||
@@ -209,7 +225,16 @@ export default {
         !containsSuper(node) &&
         !containsArguments(node) &&
         !containsNewDotTarget(node) &&
-        (!isNamed(node) || !allowNamedFunctions) &&
+        !(
+          isNamed(node) &&
+          node.type === 'FunctionDeclaration' &&
+          allowNamedFunctionsInDeclarations
+        ) &&
+        !(
+          isNamed(node) &&
+          node.type === 'FunctionExpression' &&
+          allowNamedFunctionsInExpressions
+        ) &&
         (!isPrototypeAssignment(node) || disallowPrototype) &&
         (!singleReturnOnly ||
           (returnsImmediately(node) && !isNamedDefaultExport(node)))
@@ -298,3 +323,5 @@ export default {
     };
   },
 };
+
+export default rule;

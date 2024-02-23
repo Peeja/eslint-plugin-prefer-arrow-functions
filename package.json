@@ -13,6 +13,7 @@
     "Triston Jones (https://github.com/TristonJ)"
   ],
   "devDependencies": {
+    "@types/eslint": "^8.44.9",
     "@types/jest": "27.0.2",
     "@types/node": "16.11.7",
     "@typescript-eslint/eslint-plugin": "5.3.1",

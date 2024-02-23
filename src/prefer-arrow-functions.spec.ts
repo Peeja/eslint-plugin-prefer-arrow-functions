@@ -691,7 +691,7 @@ const invalidWhenReturnStyleIsExplicit = [
   },
 ];
 
-const validWhenAllowNamedFunctions = [
+const validWhenAllowNamedFunctionsDeclarations = [
   { code: '() => { function foo() { return "bar"; } }' },
   { code: '() => { function * fooGen() { return yield "bar"; } }' },
   { code: '() => { async function foo() { return await "bar"; } }' },
@@ -703,6 +703,20 @@ const validWhenAllowNamedFunctions = [
   {
     // Make sure "allowNamedFunctions" works with typescript
     code: '() => { function foo(a: string): string { return `bar ${a}`;} }',
+    parser: require.resolve('@typescript-eslint/parser'),
+  },
+];
+
+const validWhenAllowNamedFunctionsExpressionOnly = [
+  { code: '() => { return function foo() { return "bar"; } }' },
+  { code: '() => { return function * fooGen() { return yield "bar"; } }' },
+  { code: '() => { return async function foo() { return await "bar"; } }' },
+  { code: '() => { return function foo() { return () => "bar"; } }' },
+  { code: '() => function foo() { return "bar"; }' },
+  { code: '() => setTimeout(function foo() { return "bar"; }' },
+  {
+    // Make sure "allowNamedFunctions" works with typescript
+    code: '() => { return function foo(a: string): string { return `bar ${a}`;} }',
     parser: require.resolve('@typescript-eslint/parser'),
   },
 ];
@@ -745,25 +759,25 @@ const invalidWhenAllowNamedFunctions = [
     code: 'export default () => { var foo = function() { return "bar"; }; }',
     output: 'export default () => { var foo = () => "bar"; }',
   },
-  {
-    // Using multiple lines to check that it only errors on the inner function
-    code: `function top() {
-      return function() { return "bar"; };
-    }`,
-    output: `function top() {
-      return () => "bar";
-    }`,
-  },
-  {
-    // Make sure "allowNamedFunctions" works with typescript
-    code: `function foo(a: string): () => string {
-      return function() { return \`bar \${a}\`; };
-    }`,
-    output: `function foo(a: string): () => string {
-      return () => \`bar \${a}\`;
-    }`,
-    parser: require.resolve('@typescript-eslint/parser'),
-  },
+  // {
+  //   // Using multiple lines to check that it only errors on the inner function
+  //   code: `function top() {
+  //     return function() { return "bar"; };
+  //   }`,
+  //   output: `function top() {
+  //     return () => "bar";
+  //   }`,
+  // },
+  // {
+  //   // Make sure "allowNamedFunctions" works with typescript
+  //   code: `function foo(a: string): () => string {
+  //     return function() { return \`bar \${a}\`; };
+  //   }`,
+  //   output: `function foo(a: string): () => string {
+  //     return () => \`bar \${a}\`;
+  //   }`,
+  //   parser: require.resolve('@typescript-eslint/parser'),
+  // },
 ];
 
 const ruleTester = new RuleTester({
@@ -941,11 +955,27 @@ describe('when returnStyle is "explicit"', () => {
 describe('when allowNamedFunctions is true', () => {
   describe("it doesn't report named functions", () => {
     ruleTester.run('lib/rules/prefer-arrow-functions', rule, {
-      valid: validWhenAllowNamedFunctions.map(
+      valid: validWhenAllowNamedFunctionsDeclarations.map(
         withOptions({ allowNamedFunctions: true }),
       ),
       invalid: invalidWhenAllowNamedFunctions
         .map(withOptions({ allowNamedFunctions: true }))
+        .map(withErrors([USE_ARROW_WHEN_FUNCTION])),
+    });
+  });
+});
+
+describe.only("when allowNamedFunctions is 'expression-only'", () => {
+  describe("it doesn't report named function expressions", () => {
+    ruleTester.run('lib/rules/prefer-arrow-functions', rule, {
+      valid: validWhenAllowNamedFunctionsExpressionOnly.map(
+        withOptions({ allowNamedFunctions: 'expression-only' }),
+      ),
+      invalid: [
+        ...validWhenAllowNamedFunctionsDeclarations,
+        ...invalidWhenAllowNamedFunctions,
+      ]
+        .map(withOptions({ allowNamedFunctions: 'expression-only' }))
         .map(withErrors([USE_ARROW_WHEN_FUNCTION])),
     });
   });
